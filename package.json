@@ -1,0 +1,36 @@
+{
+  "name": "host-control-panel",
+  "version": "1.0.0",
+  "description": "CLI for viewing the current Windows hosts file mappings.",
+  "type": "module",
+  "bin": {
+    "host": "./dist/src/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "start": "node ./dist/src/cli.js",
+    "test": "pnpm build && node --test --test-isolation=none dist/test/**/*.test.js"
+  },
+  "keywords": [
+    "cli",
+    "hosts",
+    "windows",
+    "commander",
+    "typescript"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "commander": "^14.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3"
+  }
+}
+
+
+
