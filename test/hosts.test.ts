@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CLI_VERSION, createProgram } from "../src/cli.js";
+import { CLI_VERSION, createProgram } from "../src/program.js";
 import { parseHostsFile } from "../src/hosts.js";
 
 test("parseHostsFile ignores comments and blank lines", () => {
@@ -63,3 +63,4 @@ test("createProgram supports -v and --version", async () => {
 
   assert.equal(output.trim(), CLI_VERSION);
 });
+
