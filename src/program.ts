@@ -1,32 +1,104 @@
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { Command } from "commander";
-import { readHostsFile, WINDOWS_HOSTS_PATH, type HostEntry } from "./hosts.js";
+import {
+  appendHostsEntry,
+  DEFAULT_LOOPBACK_IP_ADDRESS,
+  readHostsFile,
+  removeHostsEntry,
+  WINDOWS_HOSTS_PATH,
+  type HostEntry,
+} from "./hosts.js";
 
 interface PackageMetadata {
   version: string;
 }
 
+interface ProgramOptions {
+  add?: boolean;
+  file: string;
+  remove?: boolean;
+}
+
+interface ProgramDependencies {
+  appendHostsEntry: typeof appendHostsEntry;
+  readHostsFile: typeof readHostsFile;
+  removeHostsEntry: typeof removeHostsEntry;
+}
+
 export const CLI_VERSION = readPackageVersion();
 
-export function createProgram(): Command {
+export function createProgram(
+  dependencies: ProgramDependencies = {
+    appendHostsEntry,
+    readHostsFile,
+    removeHostsEntry,
+  },
+): Command {
   return new Command()
     .name("host-control")
     .description("Show the current host mappings from the Windows hosts file.")
     .version(CLI_VERSION, "-v, --version", "Display the CLI version.")
+    .argument("[hostname]", "Hostname to add or remove")
+    .argument(
+      "[ipAddress]",
+      `IP address to append when using --add. Defaults to ${DEFAULT_LOOPBACK_IP_ADDRESS}`,
+    )
     .option(
       "-f, --file <path>",
       "Read from a specific hosts file path instead of the Windows default",
       WINDOWS_HOSTS_PATH,
     )
-    .action(async ({ file }: { file: string }) => {
+    .option("-a, --add", "Append a new hosts entry using <hostname> [ipAddress]")
+    .option("-r, --remove", "Remove all matching hosts entries for <hostname>")
+    .action(async (hostname: string | undefined, ipAddress: string | undefined, options: ProgramOptions) => {
       try {
-        const entries = await readHostsFile(file);
-        renderEntries(entries, file);
+        if (options.add && options.remove) {
+          throw new Error("Use either --add or --remove, not both.");
+        }
+
+        if (options.add) {
+          if (hostname === undefined) {
+            throw new Error("The --add flag requires <hostname>.");
+          }
+
+          const resolvedIpAddress = ipAddress ?? DEFAULT_LOOPBACK_IP_ADDRESS;
+          await dependencies.appendHostsEntry(options.file, hostname, resolvedIpAddress);
+          console.log(`Added ${hostname} -> ${resolvedIpAddress} to ${options.file}.`);
+          return;
+        }
+
+        if (options.remove) {
+          if (hostname === undefined) {
+            throw new Error("The --remove flag requires <hostname>.");
+          }
+
+          if (ipAddress !== undefined) {
+            throw new Error("The --remove flag only accepts <hostname>.");
+          }
+
+          const removedCount = await dependencies.removeHostsEntry(options.file, hostname);
+
+          if (removedCount === 0) {
+            console.log(`No entries found for ${hostname} in ${options.file}.`);
+            return;
+          }
+
+          console.log(
+            `Removed ${removedCount} ${removedCount === 1 ? "entry" : "entries"} for ${hostname} from ${options.file}.`,
+          );
+          return;
+        }
+
+        if (hostname !== undefined || ipAddress !== undefined) {
+          throw new Error("Positional arguments are only supported with the --add or --remove flag.");
+        }
+
+        const entries = await dependencies.readHostsFile(options.file);
+        renderEntries(entries, options.file);
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error while reading the hosts file.";
-        console.error(`Failed to read hosts file at "${file}": ${message}`);
+        const message = formatHostsAccessError(error, options);
+        console.error(`Failed to access hosts file at "${options.file}": ${message}`);
         process.exitCode = 1;
       }
     });
@@ -60,6 +132,26 @@ function renderEntries(entries: HostEntry[], filePath: string): void {
 
 function pad(value: string, width: number): string {
   return value.padEnd(width, " ");
+}
+
+function formatHostsAccessError(error: unknown, options: ProgramOptions): string {
+  const message =
+    error instanceof Error ? error.message : "Unknown error while accessing the hosts file.";
+
+  if ((options.add || options.remove) && isPermissionDeniedError(error)) {
+    return `${message} Run this command from an elevated terminal, such as PowerShell as Administrator, to modify the Windows hosts file.`;
+  }
+
+  return message;
+}
+
+function isPermissionDeniedError(error: unknown): error is NodeJS.ErrnoException {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error.code === "EACCES" || error.code === "EPERM")
+  );
 }
 
 function readPackageVersion(): string {

@@ -48,10 +48,40 @@ Show the installed CLI version:
 host-control --version
 ```
 
+Append a new hosts entry:
+
+```powershell
+host-control --add example.local 127.0.0.1
+```
+
+Append a new hosts entry using the default loopback address:
+
+```powershell
+host-control --add example.local
+```
+
+Remove all entries for a hostname:
+
+```powershell
+host-control --remove example.local
+```
+
 Read a specific file instead:
 
 ```powershell
 host-control --file C:\path\to\hosts
+```
+
+Append to a specific hosts file instead:
+
+```powershell
+host-control --file C:\path\to\hosts --add example.local 127.0.0.1
+```
+
+Remove from a specific hosts file instead:
+
+```powershell
+host-control --file C:\path\to\hosts --remove example.local
 ```
 
 ## Development
