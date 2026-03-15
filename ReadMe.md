@@ -42,6 +42,12 @@ Read the default Windows `hosts` file:
 host-control
 ```
 
+Show the installed CLI version:
+
+```powershell
+host-control --version
+```
+
 Read a specific file instead:
 
 ```powershell
@@ -68,5 +74,3 @@ Run the compiled CLI locally without installing it globally:
 pnpm build
 node .\dist\src\cli.js
 ```
-
-

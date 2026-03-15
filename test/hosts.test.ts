@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { CLI_VERSION, createProgram } from "../src/cli.js";
 import { parseHostsFile } from "../src/hosts.js";
 
 test("parseHostsFile ignores comments and blank lines", () => {
@@ -34,4 +35,31 @@ test("parseHostsFile strips inline comments and keeps multiple hostnames", () =>
       lineNumber: 1,
     },
   ]);
+});
+
+test("createProgram supports -v and --version", async () => {
+  let output = "";
+
+  const program = createProgram();
+
+  program.exitOverride();
+  program.configureOutput({
+    writeOut: (value) => {
+      output += value;
+    },
+    writeErr: (value) => {
+      output += value;
+    },
+  });
+
+  await assert.rejects(
+    program.parseAsync(["node", "host-control", "-v"]),
+    (error: unknown) =>
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "commander.version",
+  );
+
+  assert.equal(output.trim(), CLI_VERSION);
 });
