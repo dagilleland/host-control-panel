@@ -6,6 +6,7 @@ import {
   DEFAULT_LOOPBACK_IP_ADDRESS,
   readHostsFile,
   removeHostsEntry,
+  toggleHostsEntry,
   WINDOWS_HOSTS_PATH,
   type HostEntry,
 } from "./hosts.js";
@@ -18,12 +19,14 @@ interface ProgramOptions {
   add?: boolean;
   file: string;
   remove?: boolean;
+  toggle?: boolean;
 }
 
 interface ProgramDependencies {
   appendHostsEntry: typeof appendHostsEntry;
   readHostsFile: typeof readHostsFile;
   removeHostsEntry: typeof removeHostsEntry;
+  toggleHostsEntry: typeof toggleHostsEntry;
 }
 
 export const CLI_VERSION = readPackageVersion();
@@ -33,13 +36,14 @@ export function createProgram(
     appendHostsEntry,
     readHostsFile,
     removeHostsEntry,
+    toggleHostsEntry,
   },
 ): Command {
   return new Command()
     .name("host-control")
     .description("Show the current host mappings from the Windows hosts file.")
     .version(CLI_VERSION, "-v, --version", "Display the CLI version.")
-    .argument("[hostname]", "Hostname to add or remove")
+    .argument("[hostname]", "Hostname to add, remove, or toggle")
     .argument(
       "[ipAddress]",
       `IP address to append when using --add. Defaults to ${DEFAULT_LOOPBACK_IP_ADDRESS}`,
@@ -51,10 +55,13 @@ export function createProgram(
     )
     .option("-a, --add", "Append a new hosts entry using <hostname> [ipAddress]")
     .option("-r, --remove", "Remove all matching hosts entries for <hostname>")
+    .option("-t, --toggle", "Toggle matching hosts entries for <hostname> between active and commented")
     .action(async (hostname: string | undefined, ipAddress: string | undefined, options: ProgramOptions) => {
       try {
-        if (options.add && options.remove) {
-          throw new Error("Use either --add or --remove, not both.");
+        const selectedMutations = [options.add, options.remove, options.toggle].filter(Boolean).length;
+
+        if (selectedMutations > 1) {
+          throw new Error("Use only one of --add, --remove, or --toggle at a time.");
         }
 
         if (options.add) {
@@ -90,8 +97,31 @@ export function createProgram(
           return;
         }
 
+        if (options.toggle) {
+          if (hostname === undefined) {
+            throw new Error("The --toggle flag requires <hostname>.");
+          }
+
+          if (ipAddress !== undefined) {
+            throw new Error("The --toggle flag only accepts <hostname>.");
+          }
+
+          const toggled = await dependencies.toggleHostsEntry(options.file, hostname);
+          const totalToggled = toggled.commentedCount + toggled.uncommentedCount;
+
+          if (totalToggled === 0) {
+            console.log(`No entries found for ${hostname} in ${options.file}.`);
+            return;
+          }
+
+          console.log(
+            `Toggled ${totalToggled} ${totalToggled === 1 ? "entry" : "entries"} for ${hostname} in ${options.file}. Disabled ${toggled.commentedCount}, enabled ${toggled.uncommentedCount}.`,
+          );
+          return;
+        }
+
         if (hostname !== undefined || ipAddress !== undefined) {
-          throw new Error("Positional arguments are only supported with the --add or --remove flag.");
+          throw new Error("Positional arguments are only supported with the --add, --remove, or --toggle flag.");
         }
 
         const entries = await dependencies.readHostsFile(options.file);
@@ -138,7 +168,7 @@ function formatHostsAccessError(error: unknown, options: ProgramOptions): string
   const message =
     error instanceof Error ? error.message : "Unknown error while accessing the hosts file.";
 
-  if ((options.add || options.remove) && isPermissionDeniedError(error)) {
+  if ((options.add || options.remove || options.toggle) && isPermissionDeniedError(error)) {
     return `${message} Run this command from an elevated terminal, such as PowerShell as Administrator, to modify the Windows hosts file.`;
   }
 

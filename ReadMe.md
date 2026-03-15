@@ -66,6 +66,12 @@ Remove all entries for a hostname:
 host-control --remove example.local
 ```
 
+Toggle all matching entries for a hostname between active and commented:
+
+```powershell
+host-control --toggle example.local
+```
+
 Read a specific file instead:
 
 ```powershell
@@ -82,6 +88,12 @@ Remove from a specific hosts file instead:
 
 ```powershell
 host-control --file C:\path\to\hosts --remove example.local
+```
+
+Toggle entries in a specific hosts file instead:
+
+```powershell
+host-control --file C:\path\to\hosts --toggle example.local
 ```
 
 ## Development

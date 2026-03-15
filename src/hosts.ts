@@ -9,6 +9,11 @@ export interface HostEntry {
   lineNumber: number;
 }
 
+export interface ToggleHostsResult {
+  commentedCount: number;
+  uncommentedCount: number;
+}
+
 export function parseHostsFile(content: string): HostEntry[] {
   return content
     .split(/\r?\n/u)
@@ -59,6 +64,32 @@ export async function removeHostsEntry(path: string, hostname: string): Promise<
   }
 
   return removedCount;
+}
+
+export async function toggleHostsEntry(path: string, hostname: string): Promise<ToggleHostsResult> {
+  const trimmedHostname = normalizeHostname(hostname);
+  const originalContent = await readFile(path, "utf8");
+  const lineEnding = originalContent.includes("\r\n") ? "\r\n" : "\n";
+  const lines = originalContent.split(/\r?\n/u);
+  const updatedLines: string[] = [];
+  let commentedCount = 0;
+  let uncommentedCount = 0;
+
+  for (const line of lines) {
+    const toggledLine = toggleHostnameOnLine(line, trimmedHostname);
+    commentedCount += toggledLine.commentedCount;
+    uncommentedCount += toggledLine.uncommentedCount;
+    updatedLines.push(toggledLine.content);
+  }
+
+  if (commentedCount > 0 || uncommentedCount > 0) {
+    await writeFile(path, updatedLines.join(lineEnding), "utf8");
+  }
+
+  return {
+    commentedCount,
+    uncommentedCount,
+  };
 }
 
 function parseHostsLine(line: string, lineNumber: number): HostEntry | null {
@@ -120,6 +151,55 @@ function removeHostnameFromLine(
 
   const rebuiltLine = `${ipAddress} ${remainingHostnames.join(" ")}${comment.length > 0 ? ` ${comment}` : ""}`;
   return { content: rebuiltLine, removedCount };
+}
+
+function toggleHostnameOnLine(
+  line: string,
+  hostname: string,
+): { content: string; commentedCount: number; uncommentedCount: number } {
+  if (matchesCommentedHostsEntry(line, hostname)) {
+    return {
+      content: uncommentHostsLine(line),
+      commentedCount: 0,
+      uncommentedCount: 1,
+    };
+  }
+
+  if (matchesActiveHostsEntry(line, hostname)) {
+    return {
+      content: `# ${line}`,
+      commentedCount: 1,
+      uncommentedCount: 0,
+    };
+  }
+
+  return {
+    content: line,
+    commentedCount: 0,
+    uncommentedCount: 0,
+  };
+}
+
+function matchesActiveHostsEntry(line: string, hostname: string): boolean {
+  const entry = parseHostsLine(line, 1);
+  return entry !== null && entry.hostnames.includes(hostname);
+}
+
+function matchesCommentedHostsEntry(line: string, hostname: string): boolean {
+  const trimmedLine = line.trimStart();
+
+  if (!trimmedLine.startsWith("#")) {
+    return false;
+  }
+
+  const uncommentedContent = trimmedLine.slice(1).trimStart();
+  const entry = parseHostsLine(uncommentedContent, 1);
+  return entry !== null && entry.hostnames.includes(hostname);
+}
+
+function uncommentHostsLine(line: string): string {
+  const trimmedLine = line.trimStart();
+  return trimmedLine.slice(1).trimStart();
 }
 
 function stripInlineComment(line: string): string {
