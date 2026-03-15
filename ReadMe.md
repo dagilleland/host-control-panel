@@ -1,6 +1,8 @@
 # host-control-panel
 
-`host` is a TypeScript CLI built with CommanderJS that reads the Windows `hosts` file and prints the active host mappings in a simple table.
+`host-control` is a TypeScript CLI built with CommanderJS that reads the Windows `hosts` file and prints the active host mappings in a simple table.
+
+Use `pnpm` for development in this repository, and use `npm` for the global installation step.
 
 ## Requirements
 
@@ -27,23 +29,23 @@ pnpm build
 5. Install the command globally from the local source checkout:
 
 ```powershell
-pnpm install --global .
+npm install -g .
 ```
 
-After that, the `host` command should be available in a new terminal session.
+After that, the `host-control` command should be available in a new terminal session.
 
 ## Usage
 
 Read the default Windows `hosts` file:
 
 ```powershell
-host
+host-control
 ```
 
 Read a specific file instead:
 
 ```powershell
-host --file C:\path\to\hosts
+host-control --file C:\path\to\hosts
 ```
 
 ## Development
@@ -66,3 +68,5 @@ Run the compiled CLI locally without installing it globally:
 pnpm build
 node .\dist\src\cli.js
 ```
+
+

@@ -7,7 +7,7 @@ import { readHostsFile, WINDOWS_HOSTS_PATH, type HostEntry } from "./hosts.js";
 const program = new Command();
 
 program
-  .name("host")
+  .name("host-control")
   .description("Show the current host mappings from the Windows hosts file.")
   .option(
     "-f, --file <path>",
@@ -57,5 +57,6 @@ function renderEntries(entries: HostEntry[], filePath: string): void {
 function pad(value: string, width: number): string {
   return value.padEnd(width, " ");
 }
+
 
 
