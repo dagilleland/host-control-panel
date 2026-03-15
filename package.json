@@ -1,6 +1,6 @@
 {
   "name": "host-control-panel",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "CLI for viewing the current Windows hosts file mappings.",
   "type": "module",
   "bin": {
