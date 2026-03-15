@@ -28,6 +28,10 @@ export async function readHostsFile(
   return parseHostsFile(content);
 }
 
+export async function readHostsFileContent(path: string = WINDOWS_HOSTS_PATH): Promise<string> {
+  return readFile(path, "utf8");
+}
+
 export async function appendHostsEntry(
   path: string,
   hostname: string,

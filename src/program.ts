@@ -5,6 +5,7 @@ import {
   appendHostsEntry,
   DEFAULT_LOOPBACK_IP_ADDRESS,
   readHostsFile,
+  readHostsFileContent,
   removeHostsEntry,
   toggleHostsEntry,
   WINDOWS_HOSTS_PATH,
@@ -17,6 +18,7 @@ interface PackageMetadata {
 
 interface ProgramOptions {
   add?: boolean;
+  complete?: boolean;
   file: string;
   remove?: boolean;
   toggle?: boolean;
@@ -25,6 +27,7 @@ interface ProgramOptions {
 interface ProgramDependencies {
   appendHostsEntry: typeof appendHostsEntry;
   readHostsFile: typeof readHostsFile;
+  readHostsFileContent: typeof readHostsFileContent;
   removeHostsEntry: typeof removeHostsEntry;
   toggleHostsEntry: typeof toggleHostsEntry;
 }
@@ -35,6 +38,7 @@ export function createProgram(
   dependencies: ProgramDependencies = {
     appendHostsEntry,
     readHostsFile,
+    readHostsFileContent,
     removeHostsEntry,
     toggleHostsEntry,
   },
@@ -54,14 +58,15 @@ export function createProgram(
       WINDOWS_HOSTS_PATH,
     )
     .option("-a, --add", "Append a new hosts entry using <hostname> [ipAddress]")
+    .option("-c, --complete", "Display the complete hosts file, comments included")
     .option("-r, --remove", "Remove all matching hosts entries for <hostname>")
     .option("-t, --toggle", "Toggle matching hosts entries for <hostname> between active and commented")
     .action(async (hostname: string | undefined, ipAddress: string | undefined, options: ProgramOptions) => {
       try {
-        const selectedMutations = [options.add, options.remove, options.toggle].filter(Boolean).length;
+        const selectedModes = [options.add, options.complete, options.remove, options.toggle].filter(Boolean).length;
 
-        if (selectedMutations > 1) {
-          throw new Error("Use only one of --add, --remove, or --toggle at a time.");
+        if (selectedModes > 1) {
+          throw new Error("Use only one of --add, --complete, --remove, or --toggle at a time.");
         }
 
         if (options.add) {
@@ -72,6 +77,16 @@ export function createProgram(
           const resolvedIpAddress = ipAddress ?? DEFAULT_LOOPBACK_IP_ADDRESS;
           await dependencies.appendHostsEntry(options.file, hostname, resolvedIpAddress);
           console.log(`Added ${hostname} -> ${resolvedIpAddress} to ${options.file}.`);
+          return;
+        }
+
+        if (options.complete) {
+          if (hostname !== undefined || ipAddress !== undefined) {
+            throw new Error("The --complete flag does not accept positional arguments.");
+          }
+
+          const content = await dependencies.readHostsFileContent(options.file);
+          process.stdout.write(content);
           return;
         }
 

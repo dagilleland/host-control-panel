@@ -48,6 +48,12 @@ Show the installed CLI version:
 host-control --version
 ```
 
+Display the complete hosts file, comments and all:
+
+```powershell
+host-control --complete
+```
+
 Append a new hosts entry:
 
 ```powershell
@@ -76,6 +82,12 @@ Read a specific file instead:
 
 ```powershell
 host-control --file C:\path\to\hosts
+```
+
+Display the complete contents of a specific hosts file:
+
+```powershell
+host-control --file C:\path\to\hosts --complete
 ```
 
 Append to a specific hosts file instead:

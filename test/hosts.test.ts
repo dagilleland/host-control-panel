@@ -8,6 +8,7 @@ import {
   appendHostsEntry,
   DEFAULT_LOOPBACK_IP_ADDRESS,
   parseHostsFile,
+  readHostsFileContent,
   removeHostsEntry,
   toggleHostsEntry,
 } from "../src/hosts.js";
@@ -44,6 +45,19 @@ test("parseHostsFile strips inline comments and keeps multiple hostnames", () =>
       lineNumber: 1,
     },
   ]);
+});
+
+test("readHostsFileContent returns comments and mappings verbatim", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "host-control-"));
+  const hostsFile = path.join(directory, "hosts");
+  const content = "# comment\r\n127.0.0.1 localhost\r\n";
+
+  try {
+    await writeFile(hostsFile, content, "utf8");
+    assert.equal(await readHostsFileContent(hostsFile), content);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("appendHostsEntry appends a Windows-style hosts entry", async () => {
@@ -151,6 +165,30 @@ test("createProgram supports -v and --version", async () => {
   );
 
   assert.equal(output.trim(), CLI_VERSION);
+});
+
+test("createProgram supports --complete", async () => {
+  let output = "";
+  const originalWrite = process.stdout.write.bind(process.stdout);
+
+  try {
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      output += typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+      return true;
+    }) as typeof process.stdout.write;
+
+    await createProgram({
+      appendHostsEntry: async () => undefined,
+      readHostsFile: async () => [],
+      readHostsFileContent: async () => "# comment\r\n127.0.0.1 localhost\r\n",
+      removeHostsEntry: async () => 0,
+      toggleHostsEntry: async () => ({ commentedCount: 0, uncommentedCount: 0 }),
+    }).parseAsync(["node", "host-control", "--complete"]);
+
+    assert.equal(output, "# comment\r\n127.0.0.1 localhost\r\n");
+  } finally {
+    process.stdout.write = originalWrite;
+  }
 });
 
 test("createProgram supports --add with hostname and IP address", async () => {
@@ -313,6 +351,7 @@ test("createProgram explains that --add may require an elevated terminal", async
         throw permissionDeniedError;
       },
       readHostsFile: async () => [],
+      readHostsFileContent: async () => "",
       removeHostsEntry: async () => 0,
       toggleHostsEntry: async () => ({ commentedCount: 0, uncommentedCount: 0 }),
     }).parseAsync([
@@ -351,6 +390,7 @@ test("createProgram explains that --remove may require an elevated terminal", as
     await createProgram({
       appendHostsEntry: async () => undefined,
       readHostsFile: async () => [],
+      readHostsFileContent: async () => "",
       removeHostsEntry: async () => {
         throw permissionDeniedError;
       },
@@ -390,6 +430,7 @@ test("createProgram explains that --toggle may require an elevated terminal", as
     await createProgram({
       appendHostsEntry: async () => undefined,
       readHostsFile: async () => [],
+      readHostsFileContent: async () => "",
       removeHostsEntry: async () => 0,
       toggleHostsEntry: async () => {
         throw permissionDeniedError;
